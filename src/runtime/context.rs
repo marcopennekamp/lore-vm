@@ -39,6 +39,8 @@ impl Context {
     }
 
     pub fn run<'a>(&self, function: &Function<'a>, stack_bottom: usize) {
+        // FIXME Add stack overflow check.
+
         let insts = &function.instructions;
         let inst_count = function.instructions.len();
         let mut inst_index = 0;
@@ -157,7 +159,7 @@ impl Context {
 
                 // _ => panic!(format!("Instruction at index {} not implemented!", inst_index))
             }
-            
+
             inst_index += 1;
         }
     }

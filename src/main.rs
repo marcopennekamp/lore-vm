@@ -1,24 +1,29 @@
+#![feature(libc)]
+#![feature(test)]
+
 mod runtime;
+mod tests;
 
 use runtime::bytecode::*;
+use runtime::context::*;
 use runtime::function::*;
-use runtime::run;
 
 
 fn main() {
     let inc_and_print_instructions = vec![
         Instruction::Load(0),
         Instruction::Cst(0),
-        Instruction::Add(Type::U64),
+        Instruction::Add(Type::I64),
         Instruction::Store(0),
         Instruction::Load(0),
-        Instruction::Dup,
-        Instruction::Mul(Type::U64),
-        Instruction::Print(Type::U64),
+        Instruction::Cst(1),
+        Instruction::Mul(Type::I64),
+        Instruction::Print(Type::I64),
     ];
 
     let inc_and_print_constants = ConstantTable::new(vec![
-        Constant::U64(10),
+        Constant::I64(-25),
+        Constant::I64(20),
     ]);
 
     let inc_and_print = Function::new(
@@ -30,5 +35,8 @@ fn main() {
         println!("{:?}", instruction);
     }
 
-    run::run(&inc_and_print, vec![5])
+    let context = Context::new(1024);
+    context.set_local(0, 5);
+
+    context.run(&inc_and_print, 0)
 }

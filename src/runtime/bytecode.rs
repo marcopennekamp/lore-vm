@@ -1,4 +1,5 @@
 use std::fmt;
+use std::cmp;
 
 
 pub enum Type {
@@ -31,6 +32,38 @@ pub enum Instruction {
     Mul(Type),
     Div(Type),
     Print(Type),
+}
+
+
+/// Calculates the minimum (and optimal) size of the operand stack.
+/// Also calculates the minimum (possibly not optimal) size of the locals array.
+pub fn calculate_sizes(instructions: &Vec<Instruction>) -> (i32, usize) {
+    let mut size = 0;
+    let mut highest_var: isize = -1;
+    for inst in instructions.iter() {
+        match *inst {
+            Instruction::Pop => size -= 1,
+            Instruction::Dup => size += 1,
+            Instruction::Cst(..) => size += 1,
+            Instruction::Load(var) => {
+                size += 1;
+                highest_var = cmp::max(highest_var, var as isize);
+            },
+            Instruction::Store(var) => {
+                size -= 1;
+                highest_var = cmp::max(highest_var, var as isize);
+            },
+            Instruction::Add(..) => size -= 1,
+            Instruction::Sub(..) => size -= 1,
+            Instruction::Mul(..) => size -= 1,
+            Instruction::Div(..) => size -= 1,
+            Instruction::Print(..) => size -= 1,
+            _ => {
+                // No change in size.
+            }
+        }
+    }
+    (size, (highest_var + 1) as usize)
 }
 
 

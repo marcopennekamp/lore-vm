@@ -20,6 +20,15 @@ pub struct ConstantTable<'a> {
 pub struct Function<'a> {
     pub constant_table: ConstantTable<'a>,
     pub instructions: Vec<bytecode::Instruction>,
+
+    /// The amount of stack elements that are returned from the function.
+    pub return_count: u8,
+
+    /// The size that the operand stack needs to be.
+    pub stack_size: usize,
+
+    /// The amount of slots for variables.
+    pub locals_size: usize,
 }
 
 
@@ -32,7 +41,18 @@ impl<'a> ConstantTable<'a> {
 impl<'a> Function<'a> {
     pub fn new(constant_table: ConstantTable<'a>,
            instructions: Vec<bytecode::Instruction>) -> Function<'a> {
-        Function { constant_table: constant_table, instructions: instructions }
+        let (stack_size, locals_size) = bytecode::calculate_sizes(&instructions);
+        if (stack_size < 0) {
+            panic!("Calculated stack size is less than 0!");
+        }
+
+        Function {
+            constant_table: constant_table,
+            instructions: instructions,
+            return_count: 0,
+            stack_size: stack_size as usize,
+            locals_size: locals_size,
+        }
     }
 }
 

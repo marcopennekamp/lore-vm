@@ -39,14 +39,14 @@ impl<'a> Function<'a> {
 
 impl<'a> fmt::Debug for Constant<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            &Constant::I32(ref num) => write!(f, "i32: {}", num),
-            &Constant::I64(ref num) => write!(f, "i64: {}", num),
-            &Constant::U32(ref num) => write!(f, "u32: {}", num),
-            &Constant::U64(ref num) => write!(f, "u64: {}", num),
-            &Constant::F32(ref num) => write!(f, "f32: {}", num),
-            &Constant::F64(ref num) => write!(f, "f64: {}", num),
-            &Constant::Str(ref val) => write!(f, "str: '{}'", val),
+        match *self {
+            Constant::I32(ref num) => write!(f, "i32: {}", num),
+            Constant::I64(ref num) => write!(f, "i64: {}", num),
+            Constant::U32(ref num) => write!(f, "u32: {}", num),
+            Constant::U64(ref num) => write!(f, "u64: {}", num),
+            Constant::F32(ref num) => write!(f, "f32: {}", num),
+            Constant::F64(ref num) => write!(f, "f64: {}", num),
+            Constant::Str(ref val) => write!(f, "str: '{}'", val),
         }
     }
 }

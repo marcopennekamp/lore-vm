@@ -1,5 +1,5 @@
-#![feature(libc)]
 #![feature(test)]
+#![feature(alloc)]
 
 mod runtime;
 mod tests;

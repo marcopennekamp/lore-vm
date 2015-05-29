@@ -1,4 +1,4 @@
-extern crate libc;
+extern crate alloc;
 
 use std::mem;
 use std::ptr;
@@ -6,12 +6,14 @@ use std::ptr;
 use runtime::bytecode::*;
 use runtime::function::*;
 
-use self::libc::{c_void, size_t, malloc, free};
+use self::alloc::heap::{allocate, deallocate};
 
+
+const stack_align: usize = 8;
 
 pub struct Context {
     /// The general stack is 8-byte aligned.
-    stack: *mut c_void,
+    stack: *mut u8,
 
     /// The amount of elements on the stack.
     stack_size: usize,
@@ -20,14 +22,14 @@ pub struct Context {
 
 impl Drop for Context {
     fn drop(&mut self) {
-        unsafe { free(self.stack) };
+        unsafe { deallocate(self.stack, self.stack_size, stack_align) };
     }
 }
 
 
 impl Context {
     pub fn new(stack_size: usize) -> Context {
-        let stack = unsafe { malloc((stack_size * 8) as u64) };
+        let stack = unsafe { allocate(stack_size, stack_align) };
         Context { stack: stack, stack_size: stack_size }
     }
 
@@ -55,11 +57,10 @@ impl Context {
         // Stack views.
         let sv_u64: *mut u64 = self.stack as *mut u64;
         let sv_u32: *mut u32 = sv_u64 as *mut u32;
-        // let sv_u32: *mut u32 = unsafe { mem::transmute(sv_u64) };
-        let sv_i64: *mut i64 = unsafe { mem::transmute(sv_u64) };
-        let sv_i32: *mut i32 = unsafe { mem::transmute(sv_u64) };
-        let sv_f64: *mut f64 = unsafe { mem::transmute(sv_u64) };
-        let sv_f32: *mut f32 = unsafe { mem::transmute(sv_u64) };
+        let sv_i64: *mut i64 = sv_u64 as *mut i64;
+        let sv_i32: *mut i32 = sv_u64 as *mut i32;
+        let sv_f64: *mut f64 = sv_u64 as *mut f64;
+        let sv_f32: *mut f32 = sv_u64 as *mut f32;
 
         while inst_index < inst_count {
             let inst = &insts[inst_index];

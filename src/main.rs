@@ -38,5 +38,5 @@ fn main() {
     let context = Context::new(1024);
     context.set_local(0, 5);
 
-    context.run(&inc_and_print, 0)
+    context.run(&inc_and_print);
 }

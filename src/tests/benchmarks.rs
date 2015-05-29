@@ -45,7 +45,7 @@ fn add_cst_repeat(bencher: &mut Bencher) {
     let context = Context::new(1024);
     bencher.iter(|| {
         context.set_local(0, 5);
-        context.run(&add_cst_repeat, 0)
+        context.run(&add_cst_repeat);
     });
 }
 
@@ -87,7 +87,7 @@ fn dup_repeat(bencher: &mut Bencher) {
     let context = Context::new(1024);
     bencher.iter(|| {
         context.set_local(0, 5);
-        context.run(&dup_repeat, 0)
+        context.run(&dup_repeat);
     });
 }
 
@@ -124,7 +124,7 @@ fn nop_repeat(bencher: &mut Bencher) {
 
     let context = Context::new(1024);
     bencher.iter(|| {
-        context.run(&nop_repeat, 0)
+        context.run(&nop_repeat);
     });
 }
 
@@ -137,6 +137,6 @@ fn overhead(bencher: &mut Bencher) {
 
     let context = Context::new(1024);
     bencher.iter(|| {
-        context.run(&do_nothing, 0)
+        context.run(&do_nothing);
     });
 }

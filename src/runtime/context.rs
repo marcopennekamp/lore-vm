@@ -10,39 +10,65 @@ use self::alloc::heap::{allocate, deallocate};
 
 
 const stack_align: usize = 8;
+const stack_element_size: usize = 8;
 
 pub struct Context {
     /// The general stack is 8-byte aligned.
     stack: *mut u8,
 
     /// The amount of elements on the stack.
+    /// NOT the byte size of the stack:
+    /// TODO Possibly confusing name.
     stack_size: usize,
 }
 
 
 impl Drop for Context {
     fn drop(&mut self) {
-        unsafe { deallocate(self.stack, self.stack_size, stack_align) };
+        unsafe { deallocate(self.stack, self.byte_size(), stack_align) };
     }
 }
 
 
 impl Context {
     pub fn new(stack_size: usize) -> Context {
-        let stack = unsafe { allocate(stack_size, stack_align) };
+        let stack = unsafe { allocate(stack_size * stack_element_size, stack_align) };
         Context { stack: stack, stack_size: stack_size }
     }
 
     pub fn set_local(&self, var: VariableIndex, value: u64) {
         unsafe {
-            let locals = self.stack as *mut u64;
+            let locals = self.u64_stack_view();
             *locals.offset(var as isize) = value;
         }
     }
 
-    pub fn run<'a>(&self, function: &Function<'a>, stack_bottom: usize) {
-        // FIXME Add stack overflow check.
+    fn u64_stack_view(&self) -> *mut u64 {
+        return self.stack as *mut u64;
+    }
 
+    /// Calculates the (exclusive) end of the stack.
+    fn byte_size(&self) -> usize {
+        return self.stack_size * stack_element_size;
+    }
+
+    /// Returns a vector of function results.
+    pub fn run<'a>(&self, function: &Function<'a>) -> Vec<u64> {
+        let return_count = function.return_count as usize;
+
+        // The return stack is filled at 0..return_count.
+        self.call(function, return_count, 0);
+        let mut result = vec![];
+        for i in 0..return_count {
+            unsafe {
+                result.push(*(self.u64_stack_view().offset(i as isize)));
+            }
+        }
+        result
+    }
+
+    pub fn call<'a>(&self, function: &Function<'a>, stack_bottom: usize,
+                   stack_return: usize) {
         let insts = &function.instructions;
         let inst_count = function.instructions.len();
         let mut inst_index = 0;
@@ -50,6 +76,11 @@ impl Context {
         // Operand stack top is exclusive.
         // The operand stack comes after the locals.
         let mut op_stack_top: usize = stack_bottom + function.locals_size;
+
+        // Checks and prevents stack overflows.
+        if (op_stack_top + function.stack_size >= self.byte_size()) {
+            panic!("Stack overflow occured!");
+        }
 
         // Locals view.
         let locals: *mut u64 = self.stack as *mut u64;

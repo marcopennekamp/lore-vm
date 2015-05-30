@@ -30,6 +30,60 @@ impl Drop for Context {
 }
 
 
+/// Direct stack access.
+macro_rules! dsa {
+    ( $ptr:expr, $pos:expr ) => {
+        *$ptr.offset($pos as isize)
+    };
+}
+
+/// Typed stack access.
+macro_rules! tsa {
+    ( $type_enum:expr, $ptr:expr, $pos:expr ) => {
+        *$ptr.offset(sao($type_enum, $pos))
+    };
+}
+
+// This workaround prevents an error with the following expression:
+//      a $op b
+// Where $op is a token tree. The compiler does not recognize the
+// token tree as an operator, and instead complains, quite ironically,
+// that an operator was expected, but instead $op was found.
+// Refer to https://github.com/rust-lang/rust/issues/5846.
+macro_rules! workaround_expr {
+    ( $a:expr ) => {
+        $a
+    }
+}
+
+macro_rules! stack_op {
+    ( $type_enum:expr, $ptr:expr, $top:ident, $op:tt ) => {
+        {
+            let left = $top - 2;
+            let right = $top - 1;
+            tsa!($type_enum, $ptr, left) = workaround_expr!(tsa!($type_enum, $ptr, left) $op tsa!($type_enum, $ptr, right));
+            $top = right;
+        }
+    };
+}
+
+/// Expects t as a Type enum reference.
+macro_rules! match_op {
+    ( $stack:ident, $t:ident, $top:ident, $op:tt ) => {
+        {
+            match *($t) {
+                Type::U64 => stack_op!(Type::U64, $stack as *mut u64, $top, $op),
+                Type::U32 => stack_op!(Type::U32, $stack as *mut u32, $top, $op),
+                Type::I64 => stack_op!(Type::I64, $stack as *mut i64, $top, $op),
+                Type::I32 => stack_op!(Type::I32, $stack as *mut i32, $top, $op),
+                Type::F64 => stack_op!(Type::F64, $stack as *mut f64, $top, $op),
+                Type::F32 => stack_op!(Type::F32, $stack as *mut f32, $top, $op),
+                _ => panic!("Unsupported type!"),
+            }
+        }
+    }
+}
+
 impl Context {
     pub fn new(stack_size: usize) -> Context {
         let stack = unsafe { allocate(stack_size * stack_element_size, stack_align) };
@@ -100,105 +154,75 @@ impl Context {
 
                 },
 
-                Instruction::Pop => op_stack_top -= 1,
+                Instruction::Pop => {
+                    op_stack_top -= 1
+                },
+
                 Instruction::Dup => unsafe {
-                    *sv_u64.offset(op_stack_top as isize) = *sv_u64.offset((op_stack_top - 1) as isize);
+                    dsa!(sv_u64, op_stack_top) = dsa!(sv_u64, op_stack_top - 1);
                     op_stack_top += 1;
                 },
 
-                Instruction::Cst(ref index) => {
+                Instruction::Cst(ref index) => unsafe {
                     let constant = &function.constant_table.table[*index as usize];
                     match *constant {
-                        Constant::U64(num) => unsafe {
-                            *sv_u64.offset(sao(Type::U64, op_stack_top)) = num;
-                        },
-                        Constant::I64(num) => unsafe {
-                            *sv_i64.offset(sao(Type::I64, op_stack_top)) = num;
-                        },
+                        Constant::U64(num) => { tsa!(Type::U64, sv_u64, op_stack_top) = num; },
+                        Constant::U32(num) => { tsa!(Type::U32, sv_u32, op_stack_top) = num; },
+                        Constant::I64(num) => { tsa!(Type::I64, sv_i64, op_stack_top) = num; },
+                        Constant::I32(num) => { tsa!(Type::I32, sv_i32, op_stack_top) = num; },
+                        Constant::F64(num) => { tsa!(Type::F64, sv_f64, op_stack_top) = num; },
+                        Constant::F32(num) => { tsa!(Type::F32, sv_f32, op_stack_top) = num; },
                         _ => panic!(format!("Constant at index {} must be a number!", index)),
                     }
                     op_stack_top += 1;
                 },
 
                 Instruction::Load(ref var) => unsafe {
-                    *sv_u64.offset(op_stack_top as isize) = *locals.offset(*var as isize);
+                    dsa!(sv_u64, op_stack_top) = dsa!(locals, *var);
                     op_stack_top += 1;
                 },
 
                 Instruction::Store(ref var) => unsafe {
+                    dsa!(locals, *var) = dsa!(sv_u64, op_stack_top - 1);
                     op_stack_top -= 1;
-                    *locals.offset(*var as isize) = *sv_u64.offset(op_stack_top as isize);
                 },
 
                 Instruction::Add(ref t) => unsafe {
-                    let left = op_stack_top - 2;
-                    let right = op_stack_top - 1;
-
-                    match *t {
-                        Type::U64 => *sv_u64.offset(sao(Type::U64, left)) = *sv_u64.offset(sao(Type::U64, left)) + *sv_u64.offset(sao(Type::U64, right)),
-                        Type::U32 => *sv_u32.offset(sao(Type::U32, left)) = *sv_u32.offset(sao(Type::U32, left)) + *sv_u32.offset(sao(Type::U32, right)),
-                        Type::I64 => {
-                            *sv_i64.offset(sao(Type::I64, left)) = *sv_i64.offset(sao(Type::I64, left)) + *sv_i64.offset(sao(Type::I64, right));
-                        },
-                        _ => panic!("Unsupported type!"),
-                    }
-
-                    op_stack_top = right;
+                    match_op!(sv_u64, t, op_stack_top, +);
                 },
 
                 Instruction::Sub(ref t) => unsafe {
-                    let left = op_stack_top - 2;
-                    let right = op_stack_top - 1;
-                    *sv_u64.offset(sao(Type::U64, left)) = *sv_u64.offset(sao(Type::U64, left)) - *sv_u64.offset(sao(Type::U64, right));
-                    op_stack_top = right;
+                    match_op!(sv_u64, t, op_stack_top, -);
                 },
 
                 Instruction::Mul(ref t) => unsafe {
-                    let left = op_stack_top - 2;
-                    let right = op_stack_top - 1;
-
-                    match *t {
-                        Type::U64 => *sv_u64.offset(sao(Type::U64, left)) = *sv_u64.offset(sao(Type::U64, left)) * *sv_u64.offset(sao(Type::U64, right)),
-                        Type::I64 => {
-                            *sv_i64.offset(sao(Type::I64, left)) = *sv_i64.offset(sao(Type::I64, left)) * *sv_i64.offset(sao(Type::I64, right));
-                        },
-                        _ => panic!("Unsupported type!"),
-                    }
-
-                    op_stack_top = right;
+                    match_op!(sv_u64, t, op_stack_top, *);
                 },
 
                 Instruction::Div(ref t) => unsafe {
-                    let left = op_stack_top - 2;
-                    let right = op_stack_top - 1;
-                    *sv_u64.offset(sao(Type::U64, left)) = *sv_u64.offset(sao(Type::U64, left)) / *sv_u64.offset(sao(Type::U64, right));
-                    op_stack_top = right;
+                    match_op!(sv_u64, t, op_stack_top, /);
                 },
 
                 Instruction::Print(ref t) => unsafe {
-
                     match *t {
-                        Type::U64 => println!("{}", *sv_u64.offset(sao(Type::U64, op_stack_top - 1))),
-                        Type::I64 => {
-                            println!("{}", *sv_i64.offset(sao(Type::I64, op_stack_top - 1)));
-                        },
+                        Type::U64 => println!("{}", tsa!(Type::U64, sv_u64, op_stack_top - 1)),
+                        Type::U32 => println!("{}", tsa!(Type::U32, sv_u32, op_stack_top - 1)),
+                        Type::I64 => println!("{}", tsa!(Type::I64, sv_i64, op_stack_top - 1)),
+                        Type::I32 => println!("{}", tsa!(Type::I32, sv_i32, op_stack_top - 1)),
+                        Type::F64 => println!("{}", tsa!(Type::F64, sv_f64, op_stack_top - 1)),
+                        Type::F32 => println!("{}", tsa!(Type::F32, sv_f32, op_stack_top - 1)),
                         _ => panic!("Unsupported type!"),
                     }
-
-
                     op_stack_top -= 1;
                 },
-
-                // _ => panic!(format!("Instruction at index {} not implemented!", inst_index))
             }
-
             inst_index += 1;
         }
     }
 }
 
-
 /// Stack address offset.
+// TODO Inline?
 fn sao(t: Type, stack_index: usize) -> isize {
     match t {
         Type::U64 | Type::I64 | Type::F64 => stack_index as isize,

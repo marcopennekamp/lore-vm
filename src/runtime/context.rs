@@ -9,8 +9,8 @@ use runtime::function::*;
 use self::alloc::heap::{allocate, deallocate};
 
 
-const stack_align: usize = 8;
-const stack_element_size: usize = 8;
+const STACK_ALIGN: usize = 8;
+const STACK_ELEMENT_SIZE: usize = 8;
 
 pub struct Context {
     /// The general stack is 8-byte aligned.
@@ -25,7 +25,7 @@ pub struct Context {
 
 impl Drop for Context {
     fn drop(&mut self) {
-        unsafe { deallocate(self.stack, self.byte_size(), stack_align) };
+        unsafe { deallocate(self.stack, self.byte_size(), STACK_ALIGN) };
     }
 }
 
@@ -86,7 +86,7 @@ macro_rules! match_op {
 
 impl Context {
     pub fn new(stack_size: usize) -> Context {
-        let stack = unsafe { allocate(stack_size * stack_element_size, stack_align) };
+        let stack = unsafe { allocate(stack_size * STACK_ELEMENT_SIZE, STACK_ALIGN) };
         Context { stack: stack, stack_size: stack_size }
     }
 
@@ -103,7 +103,7 @@ impl Context {
 
     /// Calculates the (exclusive) end of the stack.
     fn byte_size(&self) -> usize {
-        return self.stack_size * stack_element_size;
+        return self.stack_size * STACK_ELEMENT_SIZE;
     }
 
     /// Returns a vector of function results.

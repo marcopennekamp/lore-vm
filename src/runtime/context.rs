@@ -1,8 +1,5 @@
 extern crate alloc;
 
-use std::mem;
-use std::ptr;
-
 use runtime::bytecode::*;
 use runtime::function::*;
 
@@ -97,6 +94,13 @@ impl Context {
         }
     }
 
+    pub fn get_local(&self, var: VariableIndex) -> u64 {
+        unsafe {
+            let locals = self.u64_stack_view();
+            *locals.offset(var as isize)
+        }
+    }
+
     fn u64_stack_view(&self) -> *mut u64 {
         return self.stack as *mut u64;
     }
@@ -132,7 +136,7 @@ impl Context {
         let mut op_stack_top: usize = stack_bottom + function.locals_size;
 
         // Checks and prevents stack overflows.
-        if (op_stack_top + function.stack_size >= self.byte_size()) {
+        if op_stack_top + function.stack_size >= self.byte_size() {
             panic!("Stack overflow occured!");
         }
 

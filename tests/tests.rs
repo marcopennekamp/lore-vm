@@ -1,23 +1,23 @@
 #![feature(test)]
-#![feature(alloc)]
 
-mod runtime;
-mod tests;
+extern crate test;
+extern crate lore;
 
-use runtime::bytecode::*;
-use runtime::context::*;
-use runtime::function::*;
+use lore::runtime::bytecode::*;
+use lore::runtime::context::*;
+use lore::runtime::function::*;
 
 
-fn main() {
+#[test]
+fn inc_and_print() {
     let inc_and_print_instructions = vec![
         Instruction::Load(0),
         Instruction::Cst(0),
         Instruction::Add(Type::I64),
-        Instruction::Store(0),
-        Instruction::Load(0),
         Instruction::Cst(1),
         Instruction::Mul(Type::I64),
+        Instruction::Store(0),
+        Instruction::Load(0),
         Instruction::Print(Type::I64),
     ];
 
@@ -39,4 +39,6 @@ fn main() {
     context.set_local(0, 5);
 
     context.run(&inc_and_print);
+
+    assert_eq!(context.get_local(0) as i64, -400);
 }

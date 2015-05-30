@@ -1,5 +1,4 @@
 [package]
-
 name = "lore"
 version = "0.1.0"
 authors = [ "Marco Pennekamp <marco.pennekamp96@gmail.com>" ]

@@ -1,10 +1,13 @@
+#![feature(test)]
+
 extern crate test;
+extern crate lore;
 
 use self::test::Bencher;
 
-use runtime::bytecode::*;
-use runtime::context::*;
-use runtime::function::*;
+use lore::runtime::bytecode::*;
+use lore::runtime::context::*;
+use lore::runtime::function::*;
 
 
 #[bench]

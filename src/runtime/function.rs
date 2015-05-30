@@ -42,7 +42,7 @@ impl<'a> Function<'a> {
     pub fn new(constant_table: ConstantTable<'a>,
            instructions: Vec<bytecode::Instruction>) -> Function<'a> {
         let (stack_size, locals_size) = bytecode::calculate_sizes(&instructions);
-        if (stack_size < 0) {
+        if stack_size < 0 {
             panic!("Calculated stack size is less than 0!");
         }
 

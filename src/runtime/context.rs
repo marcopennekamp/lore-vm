@@ -13,19 +13,16 @@ const STACK_ELEMENT_SIZE: usize = 8;
 
 pub struct Context {
     /// The general stack is 8-byte aligned.
-    /// TODO Possibly confusing name.
     stack: *mut u8,
 
     /// The amount of elements on the stack.
-    /// NOT the byte size of the stack:
-    /// TODO Possibly confusing name.
-    stack_size: usize,
+    stack_length: usize,
 }
 
 
 impl Drop for Context {
     fn drop(&mut self) {
-        unsafe { deallocate(self.stack, self.byte_size(), STACK_ALIGN) };
+        unsafe { deallocate(self.stack, self.stack_size(), STACK_ALIGN) };
     }
 }
 
@@ -85,18 +82,18 @@ macro_rules! match_op {
 }
 
 impl Context {
-    pub fn new(stack_size: usize) -> Context {
-        let stack = unsafe { allocate(stack_size * STACK_ELEMENT_SIZE, STACK_ALIGN) };
-        Context { stack: stack, stack_size: stack_size }
+    pub fn new(stack_length: usize) -> Context {
+        let stack = unsafe { allocate(stack_length * STACK_ELEMENT_SIZE, STACK_ALIGN) };
+        Context { stack: stack, stack_length: stack_length }
     }
 
     fn u64_stack_view(&self) -> *mut u64 {
         return self.stack as *mut u64;
     }
 
-    /// Calculates the (exclusive) end of the stack.
-    fn byte_size(&self) -> usize {
-        return self.stack_size * STACK_ELEMENT_SIZE;
+    /// Calculates the byte size of the stack.
+    fn stack_size(&self) -> usize {
+        return self.stack_length * STACK_ELEMENT_SIZE;
     }
 
     /// Returns a vector of function results.
@@ -136,10 +133,10 @@ impl Context {
 
         // Operand stack top is exclusive.
         // The operand stack comes after the locals.
-        let mut op_stack_top: usize = stack_bottom + function.locals_size;
+        let mut op_stack_top: usize = stack_bottom + function.locals_count as usize;
 
         // Checks and prevents stack overflows.
-        if op_stack_top + function.stack_size >= self.byte_size() {
+        if op_stack_top + function.max_operands as usize >= self.stack_size() {
             panic!("Stack overflow occured!");
         }
 

@@ -35,26 +35,37 @@ pub enum Instruction {
     Print(Type),
 }
 
+pub enum Constant<'a> {
+    I32(i32),
+    I64(i64),
+    U32(u32),
+    U64(u64),
+    F32(f32),
+    F64(f64),
+    Str(&'a String),
+}
 
-/// Return 1: The minimum (and optimal) size of the operand stack.
-/// Return 2: The minimum (possibly not optimal) size of the locals array.
+
+/// Return 1: The maximum amount of values at the same time that are on the operand stack.
+/// Return 2: The minimum size of the locals array. Depending on the bytecode, possibly not optimal.
 /// Return 3: The maximum amount of values that are returned by the Ret(u8) instruction.
-pub fn calculate_sizes(instructions: &Vec<Instruction>) -> (i32, usize, u8) {
+pub fn calculate_sizes(instructions: &Vec<Instruction>) -> (i32, u16, u8) {
     let mut size: i32 = 0;
-    let mut highest_var: isize = -1;
+    let mut highest_var: i32 = -1;
     let mut return_count: u8 = 0;
     for inst in instructions.iter() {
         match *inst {
+            Instruction::Nop => { },
             Instruction::Pop => size -= 1,
             Instruction::Dup => size += 1,
             Instruction::Cst(..) => size += 1,
             Instruction::Load(var) => {
                 size += 1;
-                highest_var = cmp::max(highest_var, var as isize);
+                highest_var = cmp::max(highest_var, var as i32);
             },
             Instruction::Store(var) => {
                 size -= 1;
-                highest_var = cmp::max(highest_var, var as isize);
+                highest_var = cmp::max(highest_var, var as i32);
             },
             Instruction::Add(..) => size -= 1,
             Instruction::Sub(..) => size -= 1,
@@ -67,12 +78,9 @@ pub fn calculate_sizes(instructions: &Vec<Instruction>) -> (i32, usize, u8) {
                     return_count = *count;
                 }
             },
-            _ => {
-                // No change in size.
-            }
         }
     }
-    (size, (highest_var + 1) as usize, return_count)
+    (size, (highest_var + 1) as u16, return_count)
 }
 
 
@@ -110,6 +118,20 @@ impl fmt::Debug for Instruction {
             Instruction::Div(ref t) => write!(f, "div[{:?}]", t),
             Instruction::Ret(ref count) => write!(f, "ret({:?})", count),
             Instruction::Print(ref t) => write!(f, "print[{:?}]", t),
+        }
+    }
+}
+
+impl<'a> fmt::Debug for Constant<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Constant::I32(ref num) => write!(f, "i32: {}", num),
+            Constant::I64(ref num) => write!(f, "i64: {}", num),
+            Constant::U32(ref num) => write!(f, "u32: {}", num),
+            Constant::U64(ref num) => write!(f, "u64: {}", num),
+            Constant::F32(ref num) => write!(f, "f32: {}", num),
+            Constant::F64(ref num) => write!(f, "f64: {}", num),
+            Constant::Str(ref val) => write!(f, "str: '{}'", val),
         }
     }
 }

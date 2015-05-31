@@ -24,6 +24,9 @@ pub struct Function<'a> {
     /// The amount of stack elements that are returned from the function.
     pub return_count: u8,
 
+    /// The expected amount of arguments.
+    pub argument_count: u8,
+
     /// The size that the operand stack needs to be.
     pub stack_size: usize,
 
@@ -40,8 +43,9 @@ impl<'a> ConstantTable<'a> {
 
 impl<'a> Function<'a> {
     pub fn new(constant_table: ConstantTable<'a>,
-           instructions: Vec<bytecode::Instruction>) -> Function<'a> {
-        let (stack_size, locals_size) = bytecode::calculate_sizes(&instructions);
+           instructions: Vec<bytecode::Instruction>,
+           argument_count: u8) -> Function<'a> {
+        let (stack_size, locals_size, return_count) = bytecode::calculate_sizes(&instructions);
         if stack_size < 0 {
             panic!("Calculated stack size is less than 0!");
         }
@@ -49,7 +53,8 @@ impl<'a> Function<'a> {
         Function {
             constant_table: constant_table,
             instructions: instructions,
-            return_count: 0,
+            return_count: return_count,
+            argument_count: argument_count,
             stack_size: stack_size as usize,
             locals_size: locals_size,
         }

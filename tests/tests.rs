@@ -16,9 +16,9 @@ fn inc_and_print() {
         Instruction::Add(Type::I64),
         Instruction::Cst(1),
         Instruction::Mul(Type::I64),
-        Instruction::Store(0),
-        Instruction::Load(0),
+        Instruction::Dup,
         Instruction::Print(Type::I64),
+        Instruction::Ret(1),
     ];
 
     let inc_and_print_constants = ConstantTable::new(vec![
@@ -29,16 +29,19 @@ fn inc_and_print() {
     let inc_and_print = Function::new(
         inc_and_print_constants,
         inc_and_print_instructions,
+        1,
     );
+
+    println!("return count: {}", inc_and_print.return_count);
 
     for instruction in &inc_and_print.instructions {
         println!("{:?}", instruction);
     }
 
     let context = Context::new(1024);
-    context.set_local(0, 5);
+    let arguments = vec![5];
+    let results = context.run(&inc_and_print, &arguments);
 
-    context.run(&inc_and_print);
-
-    assert_eq!(context.get_local(0) as i64, -400);
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0] as i64, -400);
 }

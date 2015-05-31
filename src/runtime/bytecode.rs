@@ -31,15 +31,18 @@ pub enum Instruction {
     Sub(Type),
     Mul(Type),
     Div(Type),
+    Ret(u8), // u8: The number of elements on the stack that are returned.
     Print(Type),
 }
 
 
-/// Calculates the minimum (and optimal) size of the operand stack.
-/// Also calculates the minimum (possibly not optimal) size of the locals array.
-pub fn calculate_sizes(instructions: &Vec<Instruction>) -> (i32, usize) {
-    let mut size = 0;
+/// Return 1: The minimum (and optimal) size of the operand stack.
+/// Return 2: The minimum (possibly not optimal) size of the locals array.
+/// Return 3: The maximum amount of values that are returned by the Ret(u8) instruction.
+pub fn calculate_sizes(instructions: &Vec<Instruction>) -> (i32, usize, u8) {
+    let mut size: i32 = 0;
     let mut highest_var: isize = -1;
+    let mut return_count: u8 = 0;
     for inst in instructions.iter() {
         match *inst {
             Instruction::Pop => size -= 1,
@@ -58,12 +61,18 @@ pub fn calculate_sizes(instructions: &Vec<Instruction>) -> (i32, usize) {
             Instruction::Mul(..) => size -= 1,
             Instruction::Div(..) => size -= 1,
             Instruction::Print(..) => size -= 1,
+            Instruction::Ret(ref count) => {
+                size -= *count as i32;
+                if *count > return_count {
+                    return_count = *count;
+                }
+            },
             _ => {
                 // No change in size.
             }
         }
     }
-    (size, (highest_var + 1) as usize)
+    (size, (highest_var + 1) as usize, return_count)
 }
 
 
@@ -99,6 +108,7 @@ impl fmt::Debug for Instruction {
             Instruction::Sub(ref t) => write!(f, "sub[{:?}]", t),
             Instruction::Mul(ref t) => write!(f, "mul[{:?}]", t),
             Instruction::Div(ref t) => write!(f, "div[{:?}]", t),
+            Instruction::Ret(ref count) => write!(f, "ret({:?})", count),
             Instruction::Print(ref t) => write!(f, "print[{:?}]", t),
         }
     }

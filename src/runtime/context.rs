@@ -1,5 +1,7 @@
 extern crate alloc;
 
+use std::ptr;
+
 use runtime::bytecode::*;
 use runtime::function::*;
 
@@ -11,6 +13,7 @@ const STACK_ELEMENT_SIZE: usize = 8;
 
 pub struct Context {
     /// The general stack is 8-byte aligned.
+    /// TODO Possibly confusing name.
     stack: *mut u8,
 
     /// The amount of elements on the stack.
@@ -87,20 +90,6 @@ impl Context {
         Context { stack: stack, stack_size: stack_size }
     }
 
-    pub fn set_local(&self, var: VariableIndex, value: u64) {
-        unsafe {
-            let locals = self.u64_stack_view();
-            *locals.offset(var as isize) = value;
-        }
-    }
-
-    pub fn get_local(&self, var: VariableIndex) -> u64 {
-        unsafe {
-            let locals = self.u64_stack_view();
-            *locals.offset(var as isize)
-        }
-    }
-
     fn u64_stack_view(&self) -> *mut u64 {
         return self.stack as *mut u64;
     }
@@ -111,8 +100,22 @@ impl Context {
     }
 
     /// Returns a vector of function results.
-    pub fn run<'a>(&self, function: &Function<'a>) -> Vec<u64> {
+    pub fn run<'a>(&self, function: &Function<'a>, arguments: &Vec<u64>) -> Vec<u64> {
+        let argument_count = function.argument_count as usize;
+
+        if arguments.len() != argument_count {
+            panic!("Expected {} arguments but got {}.", arguments.len(), argument_count);
+        }
+
         let return_count = function.return_count as usize;
+
+        // Push arguments to the locals part of the stack.
+        // Locals start at offset return_count.
+        for i in 0..argument_count {
+            unsafe {
+                *self.u64_stack_view().offset((i + return_count) as isize) = arguments[i];
+            }
+        }
 
         // The return stack is filled at 0..return_count.
         self.call(function, return_count, 0);
@@ -141,7 +144,9 @@ impl Context {
         }
 
         // Locals view.
-        let locals: *mut u64 = self.stack as *mut u64;
+        let locals: *mut u64 = unsafe {
+            (self.stack as *mut u64).offset(function.return_count as isize)
+        };
 
         // Stack views.
         let sv_u64: *mut u64 = self.stack as *mut u64;
@@ -205,6 +210,13 @@ impl Context {
 
                 Instruction::Div(ref t) => unsafe {
                     match_op!(sv_u64, t, op_stack_top, /);
+                },
+
+                Instruction::Ret(ref count) => unsafe {
+                    let count: usize = *count as usize;
+                    let dst = sv_u64.offset(stack_return as isize);
+                    let src = sv_u64.offset(op_stack_top as isize - count as isize);
+                    ptr::copy(src, dst, count);
                 },
 
                 Instruction::Print(ref t) => unsafe {

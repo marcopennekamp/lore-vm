@@ -43,12 +43,13 @@ fn add_cst_repeat(bencher: &mut Bencher) {
     let add_cst_repeat = Function::new(
         add_cst_repeat_constants,
         add_cst_repeat_instructions,
+        1,
     );
 
     let context = Context::new(1024);
+    let arguments = vec![5];
     bencher.iter(|| {
-        context.set_local(0, 5);
-        context.run(&add_cst_repeat);
+        context.run(&add_cst_repeat, &arguments);
     });
 }
 
@@ -85,12 +86,13 @@ fn dup_repeat(bencher: &mut Bencher) {
     let dup_repeat = Function::new(
         dup_repeat_constants,
         dup_repeat_instructions,
+        1,
     );
 
     let context = Context::new(1024);
+    let arguments = vec![5];
     bencher.iter(|| {
-        context.set_local(0, 5);
-        context.run(&dup_repeat);
+        context.run(&dup_repeat, &arguments);
     });
 }
 
@@ -123,11 +125,13 @@ fn nop_repeat(bencher: &mut Bencher) {
     let nop_repeat = Function::new(
         ConstantTable::new(vec![]),
         nop_repeat_instructions,
+        0,
     );
 
     let context = Context::new(1024);
+    let arguments = vec![];
     bencher.iter(|| {
-        context.run(&nop_repeat);
+        context.run(&nop_repeat, &arguments);
     });
 }
 
@@ -136,10 +140,12 @@ fn overhead(bencher: &mut Bencher) {
     let do_nothing = Function::new(
         ConstantTable::new(vec![]),
         vec![],
+        0,
     );
 
     let context = Context::new(1024);
+    let arguments = vec![];
     bencher.iter(|| {
-        context.run(&do_nothing);
+        context.run(&do_nothing, &arguments);
     });
 }

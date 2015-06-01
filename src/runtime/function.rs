@@ -1,11 +1,19 @@
 use runtime::bytecode;
 
 
+pub const INVALID_FUNCTION_ID: u32 = 0xFFFFFFFF;
+
 pub struct ConstantTable<'a> {
     pub table: Vec<bytecode::Constant<'a>>,
 }
 
 pub struct Function<'a> {
+    /// The ID of the function in the current environment.
+    pub id: u32,
+
+    /// The unique name of the function.
+    pub name: String,
+
     pub constant_table: ConstantTable<'a>,
     pub instructions: Vec<bytecode::Instruction>,
 
@@ -31,7 +39,8 @@ impl<'a> ConstantTable<'a> {
 }
 
 impl<'a> Function<'a> {
-    pub fn new(constant_table: ConstantTable<'a>,
+    pub fn new(name: String,
+           constant_table: ConstantTable<'a>,
            instructions: Vec<bytecode::Instruction>,
            argument_count: u8) -> Function<'a> {
         let (max_operands, locals_count, return_count) = bytecode::calculate_sizes(&instructions);
@@ -40,6 +49,8 @@ impl<'a> Function<'a> {
         }
 
         Function {
+            id: INVALID_FUNCTION_ID,
+            name: name,
             constant_table: constant_table,
             instructions: instructions,
             return_count: return_count,

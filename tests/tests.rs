@@ -6,6 +6,7 @@ extern crate lore;
 use lore::runtime::bytecode::*;
 use lore::runtime::context::*;
 use lore::runtime::function::*;
+use lore::runtime::environment::*;
 
 
 #[test]
@@ -27,6 +28,7 @@ fn inc_and_print() {
     ]);
 
     let inc_and_print = Function::new(
+        "inc_and_print".to_string(),
         inc_and_print_constants,
         inc_and_print_instructions,
         1,
@@ -38,9 +40,12 @@ fn inc_and_print() {
         println!("{:?}", instruction);
     }
 
+    let mut environment = Environment::new();
+    let inc_and_print_ref = environment.register_function(inc_and_print);
+
     let context = Context::new(1024);
     let arguments = vec![5];
-    let results = context.run(&inc_and_print, &arguments);
+    let results = context.run(inc_and_print_ref, &arguments);
 
     assert_eq!(results.len(), 1);
     assert_eq!(results[0] as i64, -400);

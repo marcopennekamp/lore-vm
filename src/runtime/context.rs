@@ -98,6 +98,10 @@ impl Context {
 
     /// Returns a vector of function results.
     pub fn run<'a>(&self, function: &Function<'a>, arguments: &Vec<u64>) -> Vec<u64> {
+        if function.id == INVALID_FUNCTION_ID {
+            panic!("The function must be registered with the environment.");
+        }
+
         let argument_count = function.argument_count as usize;
 
         if arguments.len() != argument_count {

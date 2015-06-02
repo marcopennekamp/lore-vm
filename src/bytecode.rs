@@ -9,6 +9,8 @@ use byteorder::{BigEndian, ReadBytesExt};
 use io;
 
 
+enum_from_primitive! {
+#[derive(PartialEq)]
 pub enum Type {
     I8      = 0x0,
     I16     = 0x1,
@@ -23,9 +25,28 @@ pub enum Type {
     Ptr     = 0xA,
     Void    = 0xB,
 }
+}
 
 pub type VariableIndex = u16;
 pub type ConstantTableIndex = u16;
+
+enum_from_primitive! {
+#[derive(Debug, PartialEq)]
+pub enum Opcode {
+    Nop = 0x01,
+    Pop = 0x02,
+    Dup = 0x03,
+    Cst = 0x04,
+    Load = 0x05,
+    Store = 0x06,
+    Add = 0x07,
+    Sub = 0x08,
+    Mul = 0x09,
+    Div = 0x0A,
+    Ret = 0x0B,
+    Print = 0x0C,
+}
+}
 
 pub enum Instruction {
     Nop,
@@ -103,6 +124,68 @@ pub fn calculate_sizes(instructions: &Vec<Instruction>) -> (i32, u16, u8) {
     (size, (highest_var + 1) as u16, return_count)
 }
 
+
+impl Type {
+    pub fn from_read(read: &mut Read) -> Type {
+        let value = read.read_u8().unwrap();
+        match Type::from_u8(value) {
+            Some(t) => t,
+            None => panic!("Type tag not {} known.", value),
+        }
+    }
+}
+
+impl Instruction {
+    pub fn from_read(read: &mut Read) -> Instruction {
+        let opcode = read.read_u8().unwrap();
+        let opcode = match Opcode::from_u8(opcode) {
+            Some(opcode) => opcode,
+            None => panic!("Invalid opcode: {}", opcode),
+        };
+
+        match opcode {
+            Opcode::Nop => Instruction::Nop,
+            Opcode::Pop => Instruction::Pop,
+            Opcode::Dup => Instruction::Dup,
+            Opcode::Cst => {
+                let index = read.read_u16::<BigEndian>().unwrap() as ConstantTableIndex;
+                Instruction::Cst(index)
+            },
+            Opcode::Load => {
+                let index = read.read_u16::<BigEndian>().unwrap() as VariableIndex;
+                Instruction::Load(index)
+            },
+            Opcode::Store => {
+                let index = read.read_u16::<BigEndian>().unwrap() as VariableIndex;
+                Instruction::Store(index)
+            },
+            Opcode::Add => {
+                let t = Type::from_read(read);
+                Instruction::Add(t)
+            },
+            Opcode::Sub => {
+                let t = Type::from_read(read);
+                Instruction::Sub(t)
+            },
+            Opcode::Mul => {
+                let t = Type::from_read(read);
+                Instruction::Mul(t)
+            },
+            Opcode::Div => {
+                let t = Type::from_read(read);
+                Instruction::Div(t)
+            },
+            Opcode::Ret => {
+                let count = read.read_u8().unwrap();
+                Instruction::Ret(count)
+            },
+            Opcode::Print => {
+                let t = Type::from_read(read);
+                Instruction::Print(t)
+            },
+        }
+    }
+}
 
 impl Constant {
     pub fn from_read(read: &mut Read) -> Constant {

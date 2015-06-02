@@ -2,8 +2,8 @@ extern crate alloc;
 
 use std::ptr;
 
-use runtime::bytecode::*;
-use runtime::function::*;
+use bytecode::*;
+use function::*;
 
 use self::alloc::heap::{allocate, deallocate};
 

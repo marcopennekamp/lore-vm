@@ -4,18 +4,18 @@ use std::io::{Read, BufReader};
 use byteorder::{BigEndian, ReadBytesExt};
 
 use io;
-use runtime::bytecode;
+use bytecode::*;
 
 
 pub const INVALID_FUNCTION_ID: u32 = 0xFFFFFFFF;
 
 pub struct ConstantTable {
-    pub table: Vec<bytecode::Constant>,
+    pub table: Vec<Constant>,
 }
 
 pub enum Instructions {
     FilePath(String),
-    Bytecode(Vec<bytecode::Instruction>),
+    Bytecode(Vec<Instruction>),
 }
 
 pub struct Sizes {
@@ -49,20 +49,38 @@ pub struct Function {
 
 
 impl ConstantTable {
-    pub fn new(table: Vec<bytecode::Constant>) -> ConstantTable {
+    pub fn new(table: Vec<Constant>) -> ConstantTable {
         ConstantTable { table: table }
     }
 
     pub fn from_read(read: &mut Read) -> ConstantTable {
         let table_size = read.read_u16::<BigEndian>().unwrap();
-        let mut table: Vec<bytecode::Constant> = Vec::with_capacity(table_size as usize);
+        let mut table: Vec<Constant> = Vec::with_capacity(table_size as usize);
 
         for _ in 0..table_size {
-            let constant = bytecode::Constant::from_read(read);
+            let constant = Constant::from_read(read);
             table.push(constant);
         }
 
         ConstantTable { table: table }
+    }
+}
+
+impl Instructions {
+    pub fn from_file(path: &str) -> Instructions {
+        let file = File::open(path).unwrap();
+        let mut read = BufReader::new(file);
+
+        // Read instruction count.
+        let count = read.read_u32::<BigEndian>().unwrap() as usize;
+        let mut instructions = Vec::with_capacity(count);
+
+        for _ in 0..count {
+            let instruction = Instruction::from_read(&mut read);
+            instructions.push(instruction);
+        }
+
+        Instructions::Bytecode(instructions)
     }
 }
 
@@ -92,7 +110,7 @@ impl Sizes {
 }
 
 impl Function {
-    pub fn from_path(path: &str) -> Function {
+    pub fn from_file(path: &str) -> Function {
         let file = File::open(path).unwrap();
         let mut read = BufReader::new(file);
 

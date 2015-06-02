@@ -22,6 +22,11 @@ fn inc_and_print() {
         Instruction::Ret(1),
     ];
 
+
+    for instruction in &inc_and_print_instructions {
+        println!("{:?}", instruction);
+    }
+
     let inc_and_print_constants = ConstantTable::new(vec![
         Constant::I64(-25),
         Constant::I64(20),
@@ -29,16 +34,10 @@ fn inc_and_print() {
 
     let inc_and_print = Function::new(
         "inc_and_print".to_string(),
+        Sizes::new(1, 1, 2, 2),
         inc_and_print_constants,
-        inc_and_print_instructions,
-        1,
+        Instructions::Bytecode(inc_and_print_instructions),
     );
-
-    println!("return count: {}", inc_and_print.return_count);
-
-    for instruction in &inc_and_print.instructions {
-        println!("{:?}", instruction);
-    }
 
     let mut environment = Environment::new();
     let inc_and_print_ref = environment.register_function(inc_and_print);

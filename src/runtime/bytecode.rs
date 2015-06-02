@@ -1,5 +1,12 @@
 use std::fmt;
 use std::cmp;
+use std::io::Read;
+
+use num::FromPrimitive;
+
+use byteorder::{BigEndian, ReadBytesExt};
+
+use io;
 
 
 pub enum Type {
@@ -35,14 +42,27 @@ pub enum Instruction {
     Print(Type),
 }
 
-pub enum Constant<'a> {
+enum_from_primitive! {
+#[derive(Debug, PartialEq)]
+enum ConstantTag {
+    I32 = 0x01,
+    I64 = 0x02,
+    U32 = 0x03,
+    U64 = 0x04,
+    F32 = 0x05,
+    F64 = 0x06,
+    Str = 0x07,
+}
+}
+
+pub enum Constant {
     I32(i32),
     I64(i64),
     U32(u32),
     U64(u64),
     F32(f32),
     F64(f64),
-    Str(&'a String),
+    Str(String),
 }
 
 
@@ -84,6 +104,54 @@ pub fn calculate_sizes(instructions: &Vec<Instruction>) -> (i32, u16, u8) {
 }
 
 
+impl Constant {
+    pub fn from_read(read: &mut Read) -> Constant {
+        let constant_tag = read.read_u8().unwrap();
+        let constant_tag: ConstantTag = match ConstantTag::from_u8(constant_tag) {
+            Some(tag) => tag,
+            None => panic!("Invalid constant tag: {}", constant_tag),
+        };
+
+        match constant_tag {
+            ConstantTag::I32 => {
+                let value = read.read_i32::<BigEndian>().unwrap();
+                Constant::I32(value)
+            },
+
+            ConstantTag::I64 => {
+                let value = read.read_i64::<BigEndian>().unwrap();
+                Constant::I64(value)
+            },
+
+            ConstantTag::U32 => {
+                let value = read.read_u32::<BigEndian>().unwrap();
+                Constant::U32(value)
+            },
+
+            ConstantTag::U64 => {
+                let value = read.read_u64::<BigEndian>().unwrap();
+                Constant::U64(value)
+            },
+
+            ConstantTag::F32 => {
+                let value = read.read_f32::<BigEndian>().unwrap();
+                Constant::F32(value)
+            },
+
+            ConstantTag::F64 => {
+                let value = read.read_f64::<BigEndian>().unwrap();
+                Constant::F64(value)
+            },
+
+            ConstantTag::Str => {
+                let string = io::read_string(read);
+                Constant::Str(string)
+            },
+        }
+    }
+}
+
+
 impl fmt::Debug for Type {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
@@ -122,7 +190,7 @@ impl fmt::Debug for Instruction {
     }
 }
 
-impl<'a> fmt::Debug for Constant<'a> {
+impl fmt::Debug for Constant {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Constant::I32(ref num) => write!(f, "i32: {}", num),

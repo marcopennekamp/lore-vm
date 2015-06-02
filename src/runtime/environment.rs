@@ -5,7 +5,7 @@ use runtime::function::*;
 
 /// Currently NOT thread-safe. TODO How is that in Rust, even?
 pub struct Environment<'a> {
-    functions: Vec<Function<'a>>,
+    functions: Vec<Function>,
     function_names_to_ids: HashMap<&'a str, u32>,
 }
 
@@ -13,12 +13,12 @@ pub struct Environment<'a> {
 impl<'a> Environment<'a> {
 
     pub fn new() -> Environment<'a> {
-        Environment { functions: vec![], function_names_to_ids: HashMap::new() }
+        Environment { functions: Vec::new(), function_names_to_ids: HashMap::new() }
     }
 
-    pub fn register_function(&'a mut self, mut function: Function<'a>) -> &Function<'a> {
+    pub fn register_function(&'a mut self, mut function: Function) -> &Function {
         if function.id != INVALID_FUNCTION_ID {
-            panic!("The function '{}' has already been registered. (Its id is set.)");
+            panic!("The ID of the function '{}' has already been set.");
         }
 
         let next_id: u32 = self.functions.len() as u32;
@@ -37,11 +37,11 @@ impl<'a> Environment<'a> {
     }
 
     /// Does not check whether the function exists.
-    pub fn get_function_by_id(&'a self, id: u32) -> &Function<'a> {
+    pub fn get_function_by_id(&'a self, id: u32) -> &Function {
         return &self.functions[id as usize];
     }
 
-    pub fn get_function_by_name(&'a self, name: &str) -> Option<&Function<'a>> {
+    pub fn get_function_by_name(&'a self, name: &str) -> Option<&Function> {
         match self.function_names_to_ids.get(name) {
             Some(id) => Some(self.get_function_by_id(*id)),
             None => None,

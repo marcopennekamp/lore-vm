@@ -97,18 +97,18 @@ impl Context {
     }
 
     /// Returns a vector of function results.
-    pub fn run<'a>(&self, function: &Function<'a>, arguments: &Vec<u64>) -> Vec<u64> {
+    pub fn run(&self, function: &Function, arguments: &Vec<u64>) -> Vec<u64> {
         if function.id == INVALID_FUNCTION_ID {
-            panic!("The function must be registered with the environment.");
+            panic!("The function must be registered with an environment.");
         }
 
-        let argument_count = function.argument_count as usize;
+        let argument_count = function.sizes.argument_count as usize;
 
         if arguments.len() != argument_count {
             panic!("Expected {} arguments but got {}.", arguments.len(), argument_count);
         }
 
-        let return_count = function.return_count as usize;
+        let return_count = function.sizes.return_count as usize;
 
         // Push arguments to the locals part of the stack.
         // Locals start at offset return_count.
@@ -129,24 +129,31 @@ impl Context {
         result
     }
 
-    pub fn call<'a>(&self, function: &Function<'a>, stack_bottom: usize,
+    pub fn call(&self, function: &Function, stack_bottom: usize,
                    stack_return: usize) {
-        let insts = &function.instructions;
-        let inst_count = function.instructions.len();
+        let insts;
+        match function.instructions {
+            Instructions::Bytecode(ref vec) => insts = vec,
+            Instructions::FilePath(..) => {
+                panic!("Bytecode expected, but got file path for function '{}'!",
+                    function.name);
+            }
+        }
+        let inst_count = insts.len();
         let mut inst_index = 0;
 
         // Operand stack top is exclusive.
         // The operand stack comes after the locals.
-        let mut op_stack_top: usize = stack_bottom + function.locals_count as usize;
+        let mut op_stack_top: usize = stack_bottom + function.sizes.locals_count as usize;
 
         // Checks and prevents stack overflows.
-        if op_stack_top + function.max_operands as usize >= self.stack_size() {
+        if op_stack_top + function.sizes.max_operands as usize >= self.stack_size() {
             panic!("Stack overflow occured!");
         }
 
         // Locals view.
         let locals: *mut u64 = unsafe {
-            (self.stack as *mut u64).offset(function.return_count as isize)
+            (self.stack as *mut u64).offset(function.sizes.return_count as isize)
         };
 
         // Stack views.

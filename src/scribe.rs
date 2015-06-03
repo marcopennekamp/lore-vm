@@ -120,12 +120,12 @@ impl<'a, W: Write + Seek> InstructionWriter<'a, W> {
     }
 
     fn sizes_push_operands(&mut self, amount: u16) {
-        assert!(amount < 0x8000); // Muss zu i16 konvertierbar sein.
+        assert!(amount < 0x8000); // Should be in range for a safe conversion to i16.
         self.sizes_change_operand_stack_size(amount as i16);
     }
 
     fn sizes_pop_operands(&mut self, amount: u16) {
-        assert!(amount < 0x8000); // Muss zu i16 konvertierbar sein.
+        assert!(amount < 0x8000); // Should be in range for a safe conversion to i16.
         self.sizes_change_operand_stack_size(-(amount as i16));
     }
 

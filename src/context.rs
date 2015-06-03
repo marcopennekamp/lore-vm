@@ -20,12 +20,6 @@ pub struct Context {
 }
 
 
-impl Drop for Context {
-    fn drop(&mut self) {
-        unsafe { deallocate(self.stack, self.stack_size(), STACK_ALIGN) };
-    }
-}
-
 
 /// Direct stack access.
 macro_rules! dsa {
@@ -242,6 +236,12 @@ impl Context {
             }
             inst_index += 1;
         }
+    }
+}
+
+impl Drop for Context {
+    fn drop(&mut self) {
+        unsafe { deallocate(self.stack, self.stack_size(), STACK_ALIGN) };
     }
 }
 

@@ -3,15 +3,15 @@
 extern crate test;
 extern crate lore;
 
-use lore::runtime::bytecode::*;
-use lore::runtime::context::*;
-use lore::runtime::function::*;
-use lore::runtime::environment::*;
+use lore::bytecode::*;
+use lore::context::*;
+use lore::function::*;
+use lore::environment::*;
 
 
 #[test]
 fn inc_and_print() {
-    let inc_and_print_instructions = vec![
+    /* let inc_and_print_instructions = vec![
         Instruction::Load(0),
         Instruction::Cst(0),
         Instruction::Add(Type::I64),
@@ -37,10 +37,13 @@ fn inc_and_print() {
         Sizes::new(1, 1, 2, 2),
         inc_and_print_constants,
         Instructions::Bytecode(inc_and_print_instructions),
-    );
+    ); */
+
+    let inc_and_print = Function::from_file("example/inc_and_print");
 
     let mut environment = Environment::new();
-    let inc_and_print_ref = environment.register_function(inc_and_print);
+    let id = environment.register_function(inc_and_print);
+    let inc_and_print_ref = environment.fetch_function_by_id(id);
 
     let context = Context::new(1024);
     let arguments = vec![5];

@@ -111,14 +111,10 @@ impl Sizes {
 
 impl Function {
     pub fn from_file(path: &str) -> Function {
-        let file = File::open(path).unwrap();
+        let file = File::open(path.to_string() + ".info").unwrap();
         let mut read = BufReader::new(file);
 
         // Read name.
-        /* let name_length = read.read_u8().unwrap() as usize;
-        let name_bytes = Vec::with_capacity(name_length);
-        read.read(&mut name_bytes[..]);
-        let name = String::from_utf8(name_bytes).unwrap(); */
         let name = io::read_string(&mut read);
 
         // Read sizes.
@@ -127,15 +123,12 @@ impl Function {
         // Read constant table.
         let constant_table = ConstantTable::from_read(&mut read);
 
-        // Read instructions file name.
-        let inst_path = io::read_string(&mut read);
-
         Function {
             id: INVALID_FUNCTION_ID,
             name: name,
             sizes: sizes,
             constant_table: constant_table,
-            instructions: Instructions::FilePath(inst_path),
+            instructions: Instructions::FilePath(path.to_string() + ".code"),
         }
     }
 

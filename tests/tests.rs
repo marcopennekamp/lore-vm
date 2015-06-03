@@ -3,10 +3,13 @@
 extern crate test;
 extern crate lore;
 
+use std::fs::File;
+
 use lore::bytecode::*;
 use lore::context::*;
 use lore::function::*;
 use lore::environment::*;
+use lore::scribe::*;
 
 
 #[test]
@@ -51,4 +54,21 @@ fn inc_and_print() {
 
     assert_eq!(results.len(), 1);
     assert_eq!(results[0] as i64, -400);
+}
+
+#[test]
+fn write_inc_and_print() {
+    let mut file = File::create("produced.code").unwrap();
+    let mut writer = InstructionWriter::new(&mut file);
+
+    writer.write_load(0);
+    writer.write_cst(0);
+    writer.write_typed(Opcode::Add, Type::I64);
+    writer.write_cst(1);
+    writer.write_typed(Opcode::Mul, Type::I64);
+    writer.write_operation(Opcode::Dup);
+    writer.write_typed(Opcode::Print, Type::I64);
+    writer.write_ret(1);
+
+    writer.finish();
 }

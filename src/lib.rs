@@ -12,3 +12,4 @@ pub mod context;
 pub mod environment;
 pub mod function;
 pub mod io;
+pub mod scribe;

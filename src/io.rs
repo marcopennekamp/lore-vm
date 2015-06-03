@@ -1,6 +1,6 @@
-use std::io::Read;
+use std::io::{Read, Write, Result};
 
-use byteorder::{BigEndian, ReadBytesExt};
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
 
 pub fn read_string(read: &mut Read) -> String {
@@ -22,4 +22,10 @@ pub fn read_string(read: &mut Read) -> String {
     }
 
     String::from_utf8(string_bytes).unwrap()
+}
+
+pub fn write_string(write: &mut Write, string: &str) -> Result<()> {
+    try!(write.write_u16::<BigEndian>(string.len() as u16));
+    try!(write.write_all(string.as_bytes()));
+    Ok(())
 }

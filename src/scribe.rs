@@ -4,6 +4,8 @@ use std::io::{Write, Seek, SeekFrom};
 use byteorder::{BigEndian, WriteBytesExt};
 
 use bytecode::*;
+use function::ConstantTable;
+use io;
 use function::Sizes;
 
 
@@ -13,6 +15,10 @@ pub struct InstructionWriter<'a, W: 'a> where W: Write + Seek {
 
     pub sizes: Sizes,
     current_op_size: u16,
+}
+
+pub struct FunctionWriter<'a, W: 'a> where W: Write + Seek {
+    write: &'a mut W,
 }
 
 
@@ -137,6 +143,68 @@ impl<'a, W: Write + Seek> InstructionWriter<'a, W> {
         self.current_op_size = diff as u16;
         if self.sizes.max_operands < self.current_op_size {
             self.sizes.max_operands = self.current_op_size;
+        }
+    }
+
+}
+
+impl<'a, W: Write + Seek> FunctionWriter<'a, W> {
+
+    pub fn new(write: &'a mut W) -> FunctionWriter<'a, W>
+            where W: Write + Seek {
+        FunctionWriter {
+            write: write
+        }
+    }
+
+    pub fn write_function(&mut self, name: &str,
+            sizes: &Sizes, constant_table: &ConstantTable) {
+        // Write name.
+        io::write_string(self.write, name).unwrap();
+
+        // Write sizes.
+        self.write.write_u8(sizes.return_count).unwrap();
+        self.write.write_u8(sizes.argument_count).unwrap();
+        self.write.write_u16::<BigEndian>(sizes.locals_count).unwrap();
+        self.write.write_u16::<BigEndian>(sizes.max_operands).unwrap();
+
+        // Write constant table.
+        self.write.write_u16::<BigEndian>(constant_table.table.len() as u16).unwrap();
+        for constant in &constant_table.table {
+            self.write_constant(constant);
+        }
+    }
+
+    fn write_constant(&mut self, constant: &Constant) {
+        match *constant {
+            Constant::U64(num) => {
+                self.write.write_u8(ConstantTag::U64 as u8).unwrap();
+                self.write.write_u64::<BigEndian>(num).unwrap();
+            },
+            Constant::U32(num) => {
+                self.write.write_u8(ConstantTag::U32 as u8).unwrap();
+                self.write.write_u32::<BigEndian>(num).unwrap();
+            },
+            Constant::I64(num) => {
+                self.write.write_u8(ConstantTag::I64 as u8).unwrap();
+                self.write.write_i64::<BigEndian>(num).unwrap();
+            },
+            Constant::I32(num) => {
+                self.write.write_u8(ConstantTag::I32 as u8).unwrap();
+                self.write.write_i32::<BigEndian>(num).unwrap();
+            },
+            Constant::F64(num) => {
+                self.write.write_u8(ConstantTag::F64 as u8).unwrap();
+                self.write.write_f64::<BigEndian>(num).unwrap();
+            },
+            Constant::F32(num) => {
+                self.write.write_u8(ConstantTag::F32 as u8).unwrap();
+                self.write.write_f32::<BigEndian>(num).unwrap();
+            },
+            Constant::Str(ref string) => {
+                self.write.write_u8(ConstantTag::Str as u8).unwrap();
+                io::write_string(self.write, string).unwrap();
+            },
         }
     }
 

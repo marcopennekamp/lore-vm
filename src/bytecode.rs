@@ -1,5 +1,4 @@
 use std::fmt;
-use std::cmp;
 use std::io::Read;
 
 use num::FromPrimitive;
@@ -65,7 +64,7 @@ pub enum Instruction {
 
 enum_from_primitive! {
 #[derive(Debug, PartialEq)]
-enum ConstantTag {
+pub enum ConstantTag {
     I32 = 0x00,
     I64 = 0x01,
     U32 = 0x02,

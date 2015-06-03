@@ -42,7 +42,7 @@ fn inc_and_print() {
         Instructions::Bytecode(inc_and_print_instructions),
     ); */
 
-    let inc_and_print = Function::from_file("example/inc_and_print");
+    let inc_and_print = Function::from_file("produced");
 
     let mut environment = Environment::new();
     let id = environment.register_function(inc_and_print);
@@ -71,4 +71,17 @@ fn write_inc_and_print() {
     writer.write_ret(1);
 
     writer.finish();
+
+    let mut sizes = writer.sizes;
+    sizes.argument_count = 1;
+
+    let constant_table = ConstantTable::new(vec![
+        Constant::I64(-25),
+        Constant::I64(20),
+    ]);
+
+    let mut function_file = File::create("produced.info").unwrap();
+    let mut function_writer = FunctionWriter::new(&mut function_file);
+    function_writer.write_function("inc_and_print", &sizes,
+            &constant_table);
 }

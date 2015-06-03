@@ -33,18 +33,18 @@ pub type ConstantTableIndex = u16;
 enum_from_primitive! {
 #[derive(Debug, PartialEq)]
 pub enum Opcode {
-    Nop = 0x01,
-    Pop = 0x02,
-    Dup = 0x03,
-    Cst = 0x04,
-    Load = 0x05,
-    Store = 0x06,
-    Add = 0x07,
-    Sub = 0x08,
-    Mul = 0x09,
-    Div = 0x0A,
-    Ret = 0x0B,
-    Print = 0x0C,
+    Nop = 0x00,
+    Pop = 0x01,
+    Dup = 0x02,
+    Cst = 0x03,
+    Load = 0x04,
+    Store = 0x05,
+    Add = 0x06,
+    Sub = 0x07,
+    Mul = 0x08,
+    Div = 0x09,
+    Ret = 0x0A,
+    Print = 0x0B,
 }
 }
 
@@ -66,13 +66,13 @@ pub enum Instruction {
 enum_from_primitive! {
 #[derive(Debug, PartialEq)]
 enum ConstantTag {
-    I32 = 0x01,
-    I64 = 0x02,
-    U32 = 0x03,
-    U64 = 0x04,
-    F32 = 0x05,
-    F64 = 0x06,
-    Str = 0x07,
+    I32 = 0x00,
+    I64 = 0x01,
+    U32 = 0x02,
+    U64 = 0x03,
+    F32 = 0x04,
+    F64 = 0x05,
+    Str = 0x06,
 }
 }
 

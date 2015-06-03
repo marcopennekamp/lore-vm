@@ -87,44 +87,6 @@ pub enum Constant {
 }
 
 
-/// Return 1: The maximum amount of values at the same time that are on the operand stack.
-/// Return 2: The minimum size of the locals array. Depending on the bytecode, possibly not optimal.
-/// Return 3: The maximum amount of values that are returned by the Ret(u8) instruction.
-pub fn calculate_sizes(instructions: &Vec<Instruction>) -> (i32, u16, u8) {
-    let mut size: i32 = 0;
-    let mut highest_var: i32 = -1;
-    let mut return_count: u8 = 0;
-    for inst in instructions.iter() {
-        match *inst {
-            Instruction::Nop => { },
-            Instruction::Pop => size -= 1,
-            Instruction::Dup => size += 1,
-            Instruction::Cst(..) => size += 1,
-            Instruction::Load(var) => {
-                size += 1;
-                highest_var = cmp::max(highest_var, var as i32);
-            },
-            Instruction::Store(var) => {
-                size -= 1;
-                highest_var = cmp::max(highest_var, var as i32);
-            },
-            Instruction::Add(..) => size -= 1,
-            Instruction::Sub(..) => size -= 1,
-            Instruction::Mul(..) => size -= 1,
-            Instruction::Div(..) => size -= 1,
-            Instruction::Print(..) => size -= 1,
-            Instruction::Ret(ref count) => {
-                size -= *count as i32;
-                if *count > return_count {
-                    return_count = *count;
-                }
-            },
-        }
-    }
-    (size, (highest_var + 1) as u16, return_count)
-}
-
-
 impl Type {
     pub fn from_read(read: &mut Read) -> Type {
         let value = read.read_u8().unwrap();

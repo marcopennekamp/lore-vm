@@ -1,10 +1,13 @@
 use std::fs::File;
-use std::io::{Read, BufReader};
+use std::io::{Read, BufReader, Result};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use byteorder::{BigEndian, ReadBytesExt};
 
-use io;
 use bytecode::*;
+use environment::Environment;
+use io;
 
 
 pub const INVALID_FUNCTION_ID: u32 = 0xFFFFFFFF;
@@ -14,7 +17,7 @@ pub struct ConstantTable {
 }
 
 pub enum Instructions {
-    FilePath(String),
+    FilePath(PathBuf),
     Bytecode(Vec<Instruction>),
 }
 
@@ -42,7 +45,7 @@ pub struct Function {
 
     pub sizes: Sizes,
 
-    pub constant_table: ConstantTable,
+    pub constant_table: Arc<ConstantTable>,
 
     pub instructions: Instructions,
 }
@@ -53,34 +56,47 @@ impl ConstantTable {
         ConstantTable { table: table }
     }
 
-    pub fn from_read(read: &mut Read) -> ConstantTable {
-        let table_size = read.read_u16::<BigEndian>().unwrap();
+    pub fn from_file(path: &Path) -> Result<ConstantTable> {
+        let mut with_extension = PathBuf::from(path);
+        with_extension.set_extension("cst");
+
+        let file = try!(File::open(with_extension.as_path()));
+        let mut read = BufReader::new(file);
+
+        ConstantTable::from_read(&mut read)
+    }
+
+    pub fn from_read(read: &mut Read) -> Result<ConstantTable> {
+        let table_size = try!(read.read_u16::<BigEndian>());
         let mut table: Vec<Constant> = Vec::with_capacity(table_size as usize);
 
         for _ in 0..table_size {
-            let constant = Constant::from_read(read);
+            let constant = try!(Constant::from_read(read));
             table.push(constant);
         }
 
-        ConstantTable { table: table }
+        Ok(ConstantTable { table: table })
     }
 }
 
 impl Instructions {
-    pub fn from_file(path: &str) -> Instructions {
-        let file = File::open(path).unwrap();
+    pub fn from_file(path: &Path) -> Result<Instructions> {
+        let mut with_extension = PathBuf::from(path);
+        with_extension.set_extension("code");
+
+        let file = try!(File::open(with_extension.as_path()));
         let mut read = BufReader::new(file);
 
         // Read instruction count.
-        let count = read.read_u32::<BigEndian>().unwrap() as usize;
+        let count = try!(read.read_u32::<BigEndian>()) as usize;
         let mut instructions = Vec::with_capacity(count);
 
         for _ in 0..count {
-            let instruction = Instruction::from_read(&mut read);
+            let instruction = try!(Instruction::from_read(&mut read));
             instructions.push(instruction);
         }
 
-        Instructions::Bytecode(instructions)
+        Ok(Instructions::Bytecode(instructions))
     }
 }
 
@@ -95,45 +111,57 @@ impl Sizes {
         }
     }
 
-    pub fn from_read(read: &mut Read) -> Sizes {
-        let return_count = read.read_u8().unwrap();
-        let argument_count = read.read_u8().unwrap();
-        let locals_count = read.read_u16::<BigEndian>().unwrap();
-        let max_operands = read.read_u16::<BigEndian>().unwrap();
-        Sizes {
-            return_count: return_count,
-            argument_count: argument_count,
-            locals_count: locals_count,
-            max_operands: max_operands,
-        }
+    pub fn from_read(read: &mut Read) -> Result<Sizes> {
+        let return_count = try!(read.read_u8());
+        let argument_count = try!(read.read_u8());
+        let locals_count = try!(read.read_u16::<BigEndian>());
+        let max_operands = try!(read.read_u16::<BigEndian>());
+        Ok(
+            Sizes {
+                return_count: return_count,
+                argument_count: argument_count,
+                locals_count: locals_count,
+                max_operands: max_operands,
+            }
+        )
     }
 }
 
 impl Function {
-    pub fn from_file(path: &str) -> Function {
-        let file = File::open(path.to_string() + ".info").unwrap();
+    pub fn from_file(environment: &mut Environment, path: &Path) -> Result<Function> {
+        let mut with_extension = PathBuf::from(path);
+        with_extension.set_extension("info");
+
+        let file = try!(File::open(with_extension.as_path()));
         let mut read = BufReader::new(file);
 
         // Read name.
-        let name = io::read_string(&mut read);
+        let name = try!(io::read_string(&mut read));
 
         // Read sizes.
-        let sizes = Sizes::from_read(&mut read);
+        let sizes = try!(Sizes::from_read(&mut read));
 
-        // Read constant table.
-        let constant_table = ConstantTable::from_read(&mut read);
+        // Read constant table name.
+        let constant_table_name = try!(io::read_string(&mut read));
 
-        Function {
-            id: INVALID_FUNCTION_ID,
-            name: name,
-            sizes: sizes,
-            constant_table: constant_table,
-            instructions: Instructions::FilePath(path.to_string() + ".code"),
-        }
+        // Fetch constant table.
+        let mut cst_path = PathBuf::from(path.parent().unwrap_or(Path::new("")));
+        cst_path.push(constant_table_name);
+        let constant_table = environment.fetch_constant_table(cst_path.as_path());
+
+        Ok(
+            Function {
+                id: INVALID_FUNCTION_ID,
+                name: name,
+                sizes: sizes,
+                constant_table: constant_table,
+                instructions: Instructions::FilePath(PathBuf::from(path)),
+            }
+        )
     }
 
     pub fn new(name: String, sizes: Sizes,
-           constant_table: ConstantTable,
+           constant_table: Arc<ConstantTable>,
            instructions: Instructions) -> Function {
         Function {
             id: INVALID_FUNCTION_ID,

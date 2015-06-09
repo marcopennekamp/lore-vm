@@ -21,6 +21,10 @@ pub struct FunctionWriter<'a, W: 'a> where W: Write + Seek {
     write: &'a mut W,
 }
 
+pub struct ConstantTableWriter<'a, W: 'a> where W: Write + Seek {
+    write: &'a mut W,
+}
+
 
 impl<'a, W: Write + Seek> InstructionWriter<'a, W> {
 
@@ -158,7 +162,7 @@ impl<'a, W: Write + Seek> FunctionWriter<'a, W> {
     }
 
     pub fn write_function(&mut self, name: &str,
-            sizes: &Sizes, constant_table: &ConstantTable) {
+            sizes: &Sizes, constant_table_name: &str) {
         // Write name.
         io::write_string(self.write, name).unwrap();
 
@@ -168,7 +172,21 @@ impl<'a, W: Write + Seek> FunctionWriter<'a, W> {
         self.write.write_u16::<BigEndian>(sizes.locals_count).unwrap();
         self.write.write_u16::<BigEndian>(sizes.max_operands).unwrap();
 
-        // Write constant table.
+        // Write constant table name.
+        io::write_string(self.write, constant_table_name).unwrap();
+    }
+
+}
+
+impl<'a, W: Write + Seek> ConstantTableWriter<'a, W> {
+
+    pub fn new(write: &'a mut W) -> ConstantTableWriter<'a, W> {
+        ConstantTableWriter {
+            write: write,
+        }
+    }
+
+    pub fn write_constant_table(&mut self, constant_table: &ConstantTable) {
         self.write.write_u16::<BigEndian>(constant_table.table.len() as u16).unwrap();
         for constant in &constant_table.table {
             self.write_constant(constant);

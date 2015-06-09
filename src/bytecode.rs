@@ -1,5 +1,5 @@
 use std::fmt;
-use std::io::Read;
+use std::io::{Read, Result};
 
 use num::FromPrimitive;
 
@@ -87,70 +87,72 @@ pub enum Constant {
 
 
 impl Type {
-    pub fn from_read(read: &mut Read) -> Type {
-        let value = read.read_u8().unwrap();
+    pub fn from_read(read: &mut Read) -> Result<Type> {
+        let value = try!(read.read_u8());
         match Type::from_u8(value) {
-            Some(t) => t,
+            Some(t) => Ok(t),
             None => panic!("Type tag not {} known.", value),
         }
     }
 }
 
 impl Instruction {
-    pub fn from_read(read: &mut Read) -> Instruction {
-        let opcode = read.read_u8().unwrap();
+    pub fn from_read(read: &mut Read) -> Result<Instruction> {
+        let opcode = try!(read.read_u8());
         let opcode = match Opcode::from_u8(opcode) {
             Some(opcode) => opcode,
             None => panic!("Invalid opcode: {}", opcode),
         };
 
-        match opcode {
+        let instruction = match opcode {
             Opcode::Nop => Instruction::Nop,
             Opcode::Pop => Instruction::Pop,
             Opcode::Dup => Instruction::Dup,
             Opcode::Cst => {
-                let index = read.read_u16::<BigEndian>().unwrap() as ConstantTableIndex;
+                let index = try!(read.read_u16::<BigEndian>()) as ConstantTableIndex;
                 Instruction::Cst(index)
             },
             Opcode::Load => {
-                let index = read.read_u16::<BigEndian>().unwrap() as VariableIndex;
+                let index = try!(read.read_u16::<BigEndian>()) as VariableIndex;
                 Instruction::Load(index)
             },
             Opcode::Store => {
-                let index = read.read_u16::<BigEndian>().unwrap() as VariableIndex;
+                let index = try!(read.read_u16::<BigEndian>()) as VariableIndex;
                 Instruction::Store(index)
             },
             Opcode::Add => {
-                let t = Type::from_read(read);
+                let t = try!(Type::from_read(read));
                 Instruction::Add(t)
             },
             Opcode::Sub => {
-                let t = Type::from_read(read);
+                let t = try!(Type::from_read(read));
                 Instruction::Sub(t)
             },
             Opcode::Mul => {
-                let t = Type::from_read(read);
+                let t = try!(Type::from_read(read));
                 Instruction::Mul(t)
             },
             Opcode::Div => {
-                let t = Type::from_read(read);
+                let t = try!(Type::from_read(read));
                 Instruction::Div(t)
             },
             Opcode::Ret => {
-                let count = read.read_u8().unwrap();
+                let count = try!(read.read_u8());
                 Instruction::Ret(count)
             },
             Opcode::Print => {
-                let t = Type::from_read(read);
+                let t = try!(Type::from_read(read));
                 Instruction::Print(t)
             },
-        }
+        };
+
+        Ok(instruction)
     }
 }
 
 impl Constant {
-    pub fn from_read(read: &mut Read) -> Constant {
-        let constant_tag = read.read_u8().unwrap();
+    pub fn from_read(read: &mut Read) -> Result<Constant> {
+        let constant_tag = try!(read.read_u8());
         let constant_tag: ConstantTag = match ConstantTag::from_u8(constant_tag) {
             Some(tag) => tag,
             None => panic!("Invalid constant tag: {}", constant_tag),
@@ -158,38 +160,38 @@ impl Constant {
 
         match constant_tag {
             ConstantTag::I32 => {
-                let value = read.read_i32::<BigEndian>().unwrap();
-                Constant::I32(value)
+                let value = try!(read.read_i32::<BigEndian>());
+                Ok(Constant::I32(value))
             },
 
             ConstantTag::I64 => {
-                let value = read.read_i64::<BigEndian>().unwrap();
-                Constant::I64(value)
+                let value = try!(read.read_i64::<BigEndian>());
+                Ok(Constant::I64(value))
             },
 
             ConstantTag::U32 => {
-                let value = read.read_u32::<BigEndian>().unwrap();
-                Constant::U32(value)
+                let value = try!(read.read_u32::<BigEndian>());
+                Ok(Constant::U32(value))
             },
 
             ConstantTag::U64 => {
-                let value = read.read_u64::<BigEndian>().unwrap();
-                Constant::U64(value)
+                let value = try!(read.read_u64::<BigEndian>());
+                Ok(Constant::U64(value))
             },
 
             ConstantTag::F32 => {
-                let value = read.read_f32::<BigEndian>().unwrap();
-                Constant::F32(value)
+                let value = try!(read.read_f32::<BigEndian>());
+                Ok(Constant::F32(value))
             },
 
             ConstantTag::F64 => {
-                let value = read.read_f64::<BigEndian>().unwrap();
-                Constant::F64(value)
+                let value = try!(read.read_f64::<BigEndian>());
+                Ok(Constant::F64(value))
             },
 
             ConstantTag::Str => {
-                let string = io::read_string(read);
-                Constant::Str(string)
+                let string = try!(io::read_string(read));
+                Ok(Constant::Str(string))
             },
         }
     }

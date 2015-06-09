@@ -1,4 +1,5 @@
 use std::io::{Read, Write, Result};
+use std::mem;
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
@@ -23,4 +24,8 @@ pub fn write_string(write: &mut Write, string: &str) -> Result<()> {
     try!(write.write_u16::<BigEndian>(string.len() as u16));
     try!(write.write_all(string.as_bytes()));
     Ok(())
+}
+
+pub fn string_disk_size(string: &str) -> usize {
+    return mem::size_of::<u16>() + string.len();
 }

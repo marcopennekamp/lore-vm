@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::path::Path;
+use std::io::{Seek, SeekFrom};
 
-use function::{INVALID_FUNCTION_ID, Function, ConstantTable, Instructions};
+use function::{INVALID_FUNCTION_ID, Function, Instructions};
+use cst::ConstantTable;
 
 
 /// Currently NOT thread-safe. TODO How is that in Rust, even?
@@ -78,8 +80,19 @@ impl Environment {
     pub fn fetch_function_by_id(&mut self, id: u32) -> &Function {
         let function = &mut self.functions[id as usize];
         let instructions_option = match function.instructions {
-            Instructions::FilePath(ref path) => {
-                let result = Instructions::from_file(path.as_path());
+            Instructions::File { ref path, ref offset } => {
+                let result = Function::open_reader(path.as_path());
+                if result.is_err() {
+                    panic!("Could not open reader for file '{:?}'.", path);
+                }
+
+                let mut reader = result.unwrap();
+                let result = reader.seek(SeekFrom::Start(*offset));
+                if result.is_err() {
+                    panic!("Could not seek to the appropriate place for file '{:?}'.", path);
+                }
+
+                let result = Instructions::from_read(&mut reader);
                 if result.is_err() {
                     panic!("Instructions from file '{:?}' could not be loaded.", path);
                 }

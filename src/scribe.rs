@@ -4,21 +4,20 @@ use std::io::{Write, Seek, SeekFrom};
 use byteorder::{BigEndian, WriteBytesExt};
 
 use bytecode::*;
-use function::ConstantTable;
+use cst::ConstantTable;
 use io;
-use function::Sizes;
+use function::{Function, Sizes};
 
 
-pub struct InstructionWriter<'a, W: 'a> where W: Write + Seek {
+pub struct FunctionWriter<'a, W: 'a> where W: Write + Seek {
     write: &'a mut W,
+    sizes_offset: u64,
+    instructions_offset: u64,
+
     instruction_count: u32,
 
     pub sizes: Sizes,
     current_op_size: u16,
-}
-
-pub struct FunctionWriter<'a, W: 'a> where W: Write + Seek {
-    write: &'a mut W,
 }
 
 pub struct ConstantTableWriter<'a, W: 'a> where W: Write + Seek {
@@ -26,16 +25,30 @@ pub struct ConstantTableWriter<'a, W: 'a> where W: Write + Seek {
 }
 
 
-impl<'a, W: Write + Seek> InstructionWriter<'a, W> {
+impl<'a, W: Write + Seek> FunctionWriter<'a, W> {
 
-    pub fn new(write: &'a mut W) -> InstructionWriter<'a, W>
+    pub fn new(write: &'a mut W, name: &str, constant_table_name: &str, argument_count: u8) -> FunctionWriter<'a, W>
             where W: Write + Seek {
-        let mut writer = InstructionWriter {
+        let mut writer = FunctionWriter {
             write: write,
+            sizes_offset: io::string_disk_size(name) as u64,
+            instructions_offset: Function::calculate_instructions_offset(name, constant_table_name),
             instruction_count: 0,
-            sizes: Sizes::new(0, 0, 0, 0),
+            sizes: Sizes::new(0, argument_count, 0, 0),
             current_op_size: 0,
         };
+
+        // Write name.
+        io::write_string(writer.write, name).unwrap();
+
+        // Reserve space for the sizes.
+        writer.write.write_u8(0).unwrap();
+        writer.write.write_u8(0).unwrap();
+        writer.write.write_u16::<BigEndian>(0).unwrap();
+        writer.write.write_u16::<BigEndian>(0).unwrap();
+
+        // Write constant table name.
+        io::write_string(writer.write, constant_table_name).unwrap();
 
         // Reserve 4 bytes for the instruction count.
         writer.write.write_u32::<BigEndian>(0).unwrap();
@@ -43,9 +56,17 @@ impl<'a, W: Write + Seek> InstructionWriter<'a, W> {
         writer
     }
 
-    /// Sets the instruction count to the correct value.
+    /// Writes the correct sizes and instruction count.
     pub fn finish(&mut self) {
-        self.write.seek(SeekFrom::Start(0)).unwrap();
+        // Write all sizes.
+        self.write.seek(SeekFrom::Start(self.sizes_offset)).unwrap();
+        self.write.write_u8(self.sizes.return_count).unwrap();
+        self.write.write_u8(self.sizes.argument_count).unwrap();
+        self.write.write_u16::<BigEndian>(self.sizes.locals_count).unwrap();
+        self.write.write_u16::<BigEndian>(self.sizes.max_operands).unwrap();
+
+        // Write instruction count.
+        self.write.seek(SeekFrom::Start(self.instructions_offset)).unwrap();
         self.write.write_u32::<BigEndian>(self.instruction_count).unwrap();
     }
 
@@ -148,32 +169,6 @@ impl<'a, W: Write + Seek> InstructionWriter<'a, W> {
         if self.sizes.max_operands < self.current_op_size {
             self.sizes.max_operands = self.current_op_size;
         }
-    }
-
-}
-
-impl<'a, W: Write + Seek> FunctionWriter<'a, W> {
-
-    pub fn new(write: &'a mut W) -> FunctionWriter<'a, W>
-            where W: Write + Seek {
-        FunctionWriter {
-            write: write
-        }
-    }
-
-    pub fn write_function(&mut self, name: &str,
-            sizes: &Sizes, constant_table_name: &str) {
-        // Write name.
-        io::write_string(self.write, name).unwrap();
-
-        // Write sizes.
-        self.write.write_u8(sizes.return_count).unwrap();
-        self.write.write_u8(sizes.argument_count).unwrap();
-        self.write.write_u16::<BigEndian>(sizes.locals_count).unwrap();
-        self.write.write_u16::<BigEndian>(sizes.max_operands).unwrap();
-
-        // Write constant table name.
-        io::write_string(self.write, constant_table_name).unwrap();
     }
 
 }

@@ -9,6 +9,7 @@ extern crate num;
 
 pub mod bytecode;
 pub mod context;
+pub mod cst;
 pub mod environment;
 pub mod function;
 pub mod io;

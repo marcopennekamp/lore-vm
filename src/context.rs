@@ -128,7 +128,7 @@ impl Context {
         let insts;
         match function.instructions {
             Instructions::Bytecode(ref vec) => insts = vec,
-            Instructions::FilePath(..) => {
+            Instructions::File {..} => {
                 panic!("Bytecode expected, but got file path for function '{}'!",
                     function.name);
             }
